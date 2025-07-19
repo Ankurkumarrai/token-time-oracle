@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, Calendar, Database } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface PriceResult {
   price: number;
@@ -44,27 +45,49 @@ export const TokenPriceForm = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('/supabase/functions/v1/price', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
+      console.log("Calling price function with:", { token: tokenAddress, network, timestamp: parseInt(timestamp) });
+      
+      // Check if Supabase is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        console.log("Using mock data - Supabase not configured");
+        
+        // Mock response for demonstration
+        const sources = ["cache", "alchemy", "interpolated"] as const;
+        const mockResult: PriceResult = {
+          price: parseFloat((1.0 + Math.random() * 0.1).toFixed(6)),
+          source: sources[Math.floor(Math.random() * sources.length)]
+        };
+        
+        setTimeout(() => {
+          setPriceResult(mockResult);
+          setLoading(false);
+          toast({
+            title: "Price Retrieved (Mock)",
+            description: `Found price: $${mockResult.price} (${mockResult.source})`,
+          });
+        }, 1500);
+        return;
+      }
+      
+      const { data, error } = await supabase.functions.invoke('price', {
+        body: {
           token: tokenAddress,
           network,
           timestamp: parseInt(timestamp)
-        })
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch price');
+      if (error) {
+        console.error("Supabase function error:", error);
+        throw new Error(error.message || 'Failed to fetch price');
+      }
       
-      const result = await response.json();
-      setPriceResult(result);
+      console.log("Price function response:", data);
+      setPriceResult(data);
       
       toast({
         title: "Price Retrieved",
-        description: `Found price: $${result.price} (${result.source})`,
+        description: `Found price: $${data.price} (${data.source})`,
       });
     } catch (error) {
       toast({
@@ -89,21 +112,41 @@ export const TokenPriceForm = () => {
 
     setScheduling(true);
     try {
-      const response = await fetch('/supabase/functions/v1/schedule', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
+      console.log("Calling schedule function with:", { token: tokenAddress, network });
+      
+      // Check if Supabase is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        console.log("Using mock schedule - Supabase not configured");
+        
+        setTimeout(() => {
+          setScheduleProgress({
+            token: tokenAddress,
+            network,
+            progress: 0,
+            status: "running"
+          });
+          setScheduling(false);
+          toast({
+            title: "History Fetch Scheduled (Mock)",
+            description: "Mock historical price fetching has been queued",
+          });
+        }, 1000);
+        return;
+      }
+      
+      const { data, error } = await supabase.functions.invoke('schedule', {
+        body: {
           token: tokenAddress,
           network
-        })
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to schedule history fetch');
+      if (error) {
+        console.error("Supabase schedule function error:", error);
+        throw new Error(error.message || 'Failed to schedule history fetch');
+      }
       
-      const result = await response.json();
+      console.log("Schedule function response:", data);
       
       setScheduleProgress({
         token: tokenAddress,
@@ -173,6 +216,33 @@ export const TokenPriceForm = () => {
         </p>
       </div>
 
+      {/* Example Usage Card */}
+      <Card className="bg-gradient-to-r from-info/10 to-primary/10 border-info/20">
+        <CardHeader>
+          <CardTitle className="text-lg">📋 Example Usage</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <strong>Popular Token Addresses:</strong>
+              <ul className="mt-1 space-y-1 text-muted-foreground font-mono">
+                <li>• USDC: 0xA0b86a33E6417c8aDa77C2d6E2d8e26a4BB0e72C</li>
+                <li>• UNI: 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984</li>
+                <li>• WETH: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2</li>
+              </ul>
+            </div>
+            <div>
+              <strong>Example Timestamps:</strong>
+              <ul className="mt-1 space-y-1 text-muted-foreground">
+                <li>• Jan 1, 2024: 1704067200</li>
+                <li>• July 1, 2024: 1719792000</li>
+                <li>• Current time: {Math.floor(Date.now() / 1000)}</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid md:grid-cols-2 gap-8">
         {/* Price Query Form */}
         <Card className="bg-gradient-to-br from-card to-card/50 border-border/50">
@@ -188,13 +258,22 @@ export const TokenPriceForm = () => {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="tokenAddress">Token Address</Label>
-              <Input
-                id="tokenAddress"
-                placeholder="0xA0b869...c2d6 (e.g., USDC)"
-                value={tokenAddress}
-                onChange={(e) => setTokenAddress(e.target.value)}
-                className="font-mono"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="tokenAddress"
+                  placeholder="0xA0b869...c2d6 (e.g., USDC)"
+                  value={tokenAddress}
+                  onChange={(e) => setTokenAddress(e.target.value)}
+                  className="font-mono flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setTokenAddress("0xA0b86a33E6417c8aDa77C2d6E2d8e26a4BB0e72C")}
+                >
+                  USDC
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -212,13 +291,23 @@ export const TokenPriceForm = () => {
 
             <div className="space-y-2">
               <Label htmlFor="timestamp">Unix Timestamp</Label>
-              <Input
-                id="timestamp"
-                placeholder="1678901234"
-                value={timestamp}
-                onChange={(e) => setTimestamp(e.target.value)}
-                type="number"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="timestamp"
+                  placeholder="1678901234"
+                  value={timestamp}
+                  onChange={(e) => setTimestamp(e.target.value)}
+                  type="number"
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setTimestamp("1704067200")}
+                >
+                  2024
+                </Button>
+              </div>
             </div>
 
             <Button 
