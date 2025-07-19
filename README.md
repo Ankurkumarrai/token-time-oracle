@@ -1,25 +1,54 @@
-# Welcome to your Lovable project
+#  Historical Token Price Oracle with Interpolation Engine
 
-## Project info
+A full-stack application that enables users to query the historical price of ERC-20 tokens on Ethereum and Polygon networks. If the exact price is not available, it calculates an interpolated value using surrounding data points. It also provides a scheduling feature to fetch the complete daily price history of a token from its creation date to the present.
 
-**URL**: https://lovable.dev/projects/3b80976b-44f1-49c1-9b46-f3c5502824cc
+---
 
-## How can I edit this code?
+##  Features
 
-There are several ways of editing your application.
+### Frontend (Next.js + Tailwind + Zustand)
+- **Token Price Form**: Enter `tokenAddress`, select `network`, and input `timestamp`
+- **Result Display**: Shows price with source (cache, alchemy, interpolated)
+- **Schedule Button**: Triggers full historical price fetch
+- **Progress Bar**: Visual feedback for schedule completion
 
-**Use Lovable**
+### Backend (Node.js + Express + Redis + BullMQ)
+- **GET /price**: Query price for a token at a specific time
+- **POST /schedule**: Start background job to fetch token's full history
+- **Redis Caching**: 5-minute TTL to reduce latency
+- **BullMQ Scheduler**: Fetches and stores prices daily in MongoDB
+- **Interpolation Engine**: Estimates price between two known values
+- **Alchemy SDK**: Used for historical price and first transaction date
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3b80976b-44f1-49c1-9b46-f3c5502824cc) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Tech Stack
+
+| Component      | Tech                      | Purpose                                  |
+|----------------|---------------------------|------------------------------------------|
+| Frontend       | Next.js, Tailwind CSS     | UI & server-side rendering               |
+| State Mgmt     | Zustand                   | Manage form & loading states             |
+| Backend        | Node.js, Express          | RESTful API endpoints                    |
+| Scheduler      | BullMQ                    | Job scheduling for historical data fetch |
+| Cache          | Redis (TTL: 5 mins)       | Low-latency response                     |
+| Database       | MongoDB                   | Persistent price storage                 |
+| Web3 Provider  | Alchemy SDK               | Access on-chain historical data          |
+
+---
+
+## 🔗 API Documentation
+
+### 1. `GET /price`
+
+#### Request:
+```json
+{
+  "token": "0xA0b869...c2d6",
+  "network": "ethereum",
+  "timestamp": 1678901234
+}
 
 **Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
 Follow these steps:
 
 ```sh
@@ -60,14 +89,4 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/3b80976b-44f1-49c1-9b46-f3c5502824cc) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
